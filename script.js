@@ -66,12 +66,20 @@ class Cycling extends Workout {
 class App {
   #map;
   #mapEvent;
+  #mapZoomLevel = 13;
   #workouts = [];
 
   constructor() {
+    // Get user position
     this._getPosition();
+
+    // Get data from localStorage
+    this._getLocalStorage();
+
+    // Attach event listeners
     form.addEventListener("submit", this._newWorkout.bind(this));
     inputType.addEventListener("change", this._toggleElevationField.bind(this));
+    containerWorkouts.addEventListener("click", this._moveToPopup.bind(this));
   }
 
   _getPosition() {
@@ -88,7 +96,7 @@ class App {
   _loadMap(position) {
     const { latitude, longitude } = position.coords;
     const coords = [latitude, longitude];
-    this.#map = L.map("map").setView(coords, 13);
+    this.#map = L.map("map").setView(coords, this.#mapZoomLevel);
 
     L.tileLayer("https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png", {
       attribution:
@@ -97,6 +105,9 @@ class App {
 
     // Handling clicks on map
     this.#map.on("click", this._showForm.bind(this));
+    this.#workouts.forEach((workout) => {
+      this._renderWorkoutMarker(workout);
+    });
   }
 
   _showForm(e) {
@@ -169,6 +180,20 @@ class App {
     this._renderWorkoutMarker(workout);
     this._renderWorkout(workout);
     this._hideForm();
+    this._setLocalStorage();
+  }
+
+  _setLocalStorage() {
+    localStorage.setItem("allWorkouts", JSON.stringify(this.#workouts));
+  }
+
+  _getLocalStorage() {
+    const data = JSON.parse(localStorage.getItem("allWorkouts"));
+    if (!data) return;
+    this.#workouts = this.#workouts.concat(data);
+    this.#workouts.forEach((workout) => {
+      this._renderWorkout(workout);
+    });
   }
 
   _renderWorkoutMarker(workout) {
@@ -240,6 +265,23 @@ class App {
     }
 
     form.insertAdjacentHTML("afterend", html);
+  }
+
+  _moveToPopup(e) {
+    const workoutElem = e.target.closest(".workout");
+    if (!workoutElem) return;
+
+    const workoutId = workoutElem.dataset.id;
+    const workout = this.#workouts.find((wk) => wk.id === workoutId);
+    this.#map.setView(workout.coords, this.#mapZoomLevel, {
+      animate: true,
+      pan: { duration: 1 },
+    });
+  }
+
+  reset() {
+    localStorate.removeItem("allWorkouts");
+    location.reload();
   }
 }
 
